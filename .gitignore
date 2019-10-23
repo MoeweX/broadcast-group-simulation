@@ -1,0 +1,34 @@
+# Latex
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.run.xml
+*.synctex.gz
+*.tps
+*.tcp
+*/main.pdf
+
+# System
+.DS_Store
+.dropbox
+~$*
+Icon?
+.ipynb_checkpoints/
+
+# ACM
+comment.cut
+
+# Dev
+.idea/
+*.iml
+target/
+*.log
+out/
+
+# Data
+*pl_latencies.txt
