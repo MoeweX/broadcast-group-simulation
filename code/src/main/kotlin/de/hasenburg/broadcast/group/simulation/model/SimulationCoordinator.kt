@@ -10,7 +10,7 @@ import kotlin.random.Random
 private val logger = LogManager.getLogger()
 
 suspend fun runSimulation(latencyThreshold: Double,
-                          brokerLocations: Map<BrokerId, Location> = generateRandomBrokerLocations()) =
+                          brokerLocations: Map<BrokerId, Location> = generateRandomBrokerLocations(10)) =
         coroutineScope {
             val brokerChannels = generateBrokerChannel(brokerLocations.keys)
             val brokerJobs = mutableListOf<Deferred<Broker>>()
@@ -33,36 +33,75 @@ suspend fun runSimulation(latencyThreshold: Double,
 
             do {
                 oldLeaders = brokers.numberOfLeaders()
-                logger.info("Starting tick ${++tick}")
+                logger.debug("\n\n")
+                logger.info("Starting tick ${++tick}, currently there are $oldLeaders leader")
                 coroutineScope {
-                    brokers.forEach {launch { it.startNewTick() }}
+                    brokers.forEach { launch { it.startNewTick() } }
                 }
 
                 logger.debug("Sending MergeRequests")
                 val leaders = brokers.leaders()
                 coroutineScope {
-                    brokers.forEach {launch { it.sendMergeRequest(leaders) }}
+                    brokers.forEach { launch { it.sendMergeRequest(leaders) } }
                 }
 
-                TODO("Other phases")
+                logger.debug("Receiving MergeRequests and Sending MergeReply")
+                coroutineScope {
+                    brokers.forEach { launch { it.receiveAndProcessMergeRequests() } }
+                }
+
+                logger.debug("Receiving MergeReply")
+                coroutineScope {
+                    brokers.forEach { launch { it.receiveMergeReply() } }
+                }
+
+                logger.debug("Notifying members about merge")
+                coroutineScope {
+                    brokers.forEach { launch { it.notifyMembersAboutMerge() } }
+                }
+
+                logger.debug("Leaders and Members are merging")
+                coroutineScope {
+                    brokers.forEach { launch { it.doMerge() } }
+                }
+
+                logger.debug("Receiving JoinInfo")
+                coroutineScope {
+                    brokers.forEach { launch { it.receiveJoinInfo() } }
+                }
 
             } while (oldLeaders != brokers.numberOfLeaders())
+
+            logger.info("Stable state reached after $tick ticks.")
+            check(brokers.size == brokers.numberOfMembers() + brokers.numberOfLeaders())
+            brokers.printBroadcastGroups()
         }
 
+private fun List<Broker>.printBroadcastGroups() {
+    for (broker in this) {
+        if (broker.isLeader) {
+            logger.info("${broker.brokerId} has these members: ${broker.membersInMyBroadcastGroup}")
+        }
+    }
+}
 
-private fun List<Broker>.leaders() : List<BrokerId> {
-    return this.filter {it.isLeader}.map { it.brokerId }
+private fun List<Broker>.leaders(): List<BrokerId> {
+    return this.filter { it.isLeader }.map { it.brokerId }
 }
 
 private fun List<Broker>.numberOfLeaders(): Int {
     return this.filter { it.isLeader }.size
 }
 
-private fun generateRandomBrokerLocations(): Map<BrokerId, Location> {
+private fun List<Broker>.numberOfMembers(): Int {
+    return this.filter { it.isLeader }.map { it.membersInMyBroadcastGroup.size }.sum()
+}
+
+fun generateRandomBrokerLocations(brokerNumber: Int): Map<BrokerId, Location> {
     val tmpMap = mutableMapOf<BrokerId, Location>()
     val bounding = Geofence.circle(Location(30.0, 30.0), 5.0)
 
-    repeat(10) {
+    repeat(brokerNumber) {
         tmpMap[BrokerId("Broker-$it")] = Location.randomInGeofence(bounding)
     }
 

@@ -9,23 +9,11 @@
         </File>
     </Appenders>
     <Loggers>
-        <Root level="INFO" additivity="false">
+        <Root level="info" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="File"/>
         </Root>
         <Logger name="Application" level="DEBUG" additivity="false">
-            <AppenderRef ref="Console"/>
-            <AppenderRef ref="File"/>
-        </Logger>
-        <Logger name="de.hasenburg.geobroker.service.GeoBrokerCommunicationKt" level="DEBUG" additivity="false">
-            <AppenderRef ref="Console"/>
-            <AppenderRef ref="File"/>
-        </Logger>
-        <Logger name="de.hasenburg.geobroker.service.MainKt" level="DEBUG" additivity="false">
-            <AppenderRef ref="Console"/>
-            <AppenderRef ref="File"/>
-        </Logger>
-        <Logger name="de.hasenburg.geobroker.service.FileProcessingKt" level="DEBUG" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="File"/>
         </Logger>
