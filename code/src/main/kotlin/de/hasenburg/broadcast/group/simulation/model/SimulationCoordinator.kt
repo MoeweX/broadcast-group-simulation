@@ -4,6 +4,7 @@ import de.hasenburg.geobroker.commons.model.spatial.Geofence
 import de.hasenburg.geobroker.commons.model.spatial.Location
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
+import me.tongfei.progressbar.ProgressBar
 import org.apache.logging.log4j.LogManager
 import kotlin.random.Random
 
@@ -14,21 +15,26 @@ suspend fun runSimulation(latencyThreshold: Double,
         coroutineScope {
             val brokerChannels = generateBrokerChannel(brokerLocations.keys)
             val brokerJobs = mutableListOf<Deferred<Broker>>()
+            val brokerInitChannel = Channel<Int>(Channel.BUFFERED)
 
             logger.info("Starting to setup brokers.")
+            launch { updateProgressBar(brokerInitChannel, brokerLocations.size.toLong()) }
 
             for ((brokerId, location) in brokerLocations) {
                 brokerJobs.add(async(Dispatchers.Default) {
-                    Broker(brokerId,
+                    val b = Broker(brokerId,
                             Random.nextInt(1, 1000),
                             location,
                             brokerChannels,
                             latencyThreshold,
                             brokerLocations)
+                    brokerInitChannel.send(1)
+                    b
                 })
             }
 
             val brokers = brokerJobs.awaitAll()
+
             var oldLeaders: Int
             var tick = 0
             logger.info("All brokers ready")
@@ -80,6 +86,22 @@ suspend fun runSimulation(latencyThreshold: Double,
             brokers.printBroadcastGroups()
             brokers.numberOfLeaders()
         }
+
+suspend fun updateProgressBar(brokerInitChannel: Channel<Int>, amount: Long) {
+
+    val pb = ProgressBar("Broker Initialization", amount)
+
+    for (i in brokerInitChannel) {
+        pb.step()
+
+        if (pb.current == amount) {
+            brokerInitChannel.close()
+        }
+    }
+    pb.close()
+    println()
+
+}
 
 private fun List<Broker>.printBroadcastGroups() {
     for (broker in this) {

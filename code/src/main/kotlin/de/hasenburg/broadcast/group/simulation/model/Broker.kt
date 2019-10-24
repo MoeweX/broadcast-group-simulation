@@ -9,8 +9,10 @@ import org.apache.logging.log4j.Logger
 
 private val logger = LogManager.getLogger()
 
-class Broker(val brokerId: BrokerId, private val lcm: Int, private val location: Location,
-             private val brokerChannels: Map<BrokerId, Channel<BrokerMessage>>, private val latencyThreshold: Double,
+class Broker(val brokerId: BrokerId, private val lcm: Int,
+             private val location: Location,
+             private val brokerChannels: Map<BrokerId, Channel<BrokerMessage>>,
+             private val latencyThreshold: Double,
              brokerLocations: Map<BrokerId, Location>) {
 
     // add utility member functions for logger
