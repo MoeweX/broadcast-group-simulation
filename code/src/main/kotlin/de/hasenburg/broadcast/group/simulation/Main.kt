@@ -3,6 +3,7 @@ package de.hasenburg.broadcast.group.simulation
 import de.hasenburg.broadcast.group.simulation.model.generateRandomBrokerLocations
 import de.hasenburg.broadcast.group.simulation.model.runSimulation
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.apache.logging.log4j.LogManager

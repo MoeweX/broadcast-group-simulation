@@ -15,8 +15,10 @@ suspend fun runSimulation(latencyThreshold: Double,
             val brokerChannels = generateBrokerChannel(brokerLocations.keys)
             val brokerJobs = mutableListOf<Deferred<Broker>>()
 
+            logger.info("Starting to setup brokers.")
+
             for ((brokerId, location) in brokerLocations) {
-                brokerJobs.add(async {
+                brokerJobs.add(async(Dispatchers.Default) {
                     Broker(brokerId,
                             Random.nextInt(1, 1000),
                             location,
@@ -36,44 +38,45 @@ suspend fun runSimulation(latencyThreshold: Double,
                 logger.debug("\n\n")
                 logger.info("Starting tick ${++tick}, currently there are $oldLeaders leader")
                 coroutineScope {
-                    brokers.forEach { launch { it.startNewTick() } }
+                    brokers.forEach { launch(Dispatchers.Default) { it.startNewTick() } }
                 }
 
                 logger.debug("Sending MergeRequests")
                 val leaders = brokers.leaders()
                 coroutineScope {
-                    brokers.forEach { launch { it.sendMergeRequest(leaders) } }
+                    brokers.forEach { launch(Dispatchers.Default) { it.sendMergeRequest(leaders) } }
                 }
 
                 logger.debug("Receiving MergeRequests and Sending MergeReply")
                 coroutineScope {
-                    brokers.forEach { launch { it.receiveAndProcessMergeRequests() } }
+                    brokers.forEach { launch(Dispatchers.Default) { it.receiveAndProcessMergeRequests() } }
                 }
 
                 logger.debug("Receiving MergeReply")
                 coroutineScope {
-                    brokers.forEach { launch { it.receiveMergeReply() } }
+                    brokers.forEach { launch(Dispatchers.Default) { it.receiveMergeReply() } }
                 }
 
                 logger.debug("Notifying members about merge")
                 coroutineScope {
-                    brokers.forEach { launch { it.notifyMembersAboutMerge() } }
+                    brokers.forEach { launch(Dispatchers.Default) { it.notifyMembersAboutMerge() } }
                 }
 
                 logger.debug("Leaders and Members are merging")
                 coroutineScope {
-                    brokers.forEach { launch { it.doMerge() } }
+                    brokers.forEach { launch(Dispatchers.Default) { it.doMerge() } }
                 }
 
                 logger.debug("Receiving JoinInfo")
                 coroutineScope {
-                    brokers.forEach { launch { it.receiveJoinInfo() } }
+                    brokers.forEach { launch(Dispatchers.Default) { it.receiveJoinInfo() } }
                 }
 
-            } while (oldLeaders != brokers.numberOfLeaders())
+            } while (!brokers.validateCreatedBroadcastGroups(false))
 
             logger.info("Stable state reached after $tick ticks.")
             check(brokers.size == brokers.numberOfMembers() + brokers.numberOfLeaders())
+            check(brokers.validateCreatedBroadcastGroups())
             brokers.printBroadcastGroups()
         }
 
@@ -83,6 +86,21 @@ private fun List<Broker>.printBroadcastGroups() {
             logger.info("${broker.brokerId} has these members: ${broker.membersInMyBroadcastGroup}")
         }
     }
+}
+
+/**
+ * Broadcast groups are valid, if:
+ * - all members have a latency to their leader below the defined threshold
+ * - a leader has a latency to all other leaders above the defined threshold
+ */
+private fun List<Broker>.validateCreatedBroadcastGroups(log: Boolean = true): Boolean {
+    for (broker in this) {
+        if (!broker.validateLatency(this.leaders(), log)) {
+            return false
+        }
+    }
+
+    return true
 }
 
 private fun List<Broker>.leaders(): List<BrokerId> {

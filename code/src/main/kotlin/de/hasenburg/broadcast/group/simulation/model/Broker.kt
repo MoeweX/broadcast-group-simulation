@@ -24,6 +24,10 @@ class Broker(val brokerId: BrokerId, private val lcm: Int, private val location:
         this.debug("$b $msg")
     }
 
+    private fun Logger.w(msg: String) {
+        this.warn("$b $msg")
+    }
+
     private fun Logger.e(msg: String) {
         this.error("$b $msg")
     }
@@ -281,6 +285,31 @@ class Broker(val brokerId: BrokerId, private val lcm: Int, private val location:
     /*******************************************************************
      * HELPER
      ******************************************************************/
+
+    /**
+     * For member -> check whether to leader is below the defined threshold
+     *
+     * For leader -> check whether latency to other leaders is below the defined threshold
+     * Broadcast groups are valid, if:
+     * - all members have a latency to their leader below the defined threshold
+     * - a leader has a latency to all other leaders above the defined threshold
+     */
+    fun validateLatency(leaders: List<BrokerId>, log: Boolean = true): Boolean {
+        if (isLeader) {
+            for (otherLeaderId in leaders.filter { it != brokerId }) {
+                if (brokerLatenciesInMs.checkLatency(otherLeaderId)) {
+                    if (log) logger.w("Latency to other leader $otherLeaderId is below threshold, no valid state reached")
+                    return false
+                }
+            }
+        } else {
+            if (!brokerLatenciesInMs.checkLatency(leaderId)) {
+                if (log) logger.w("Latency to my leader $leaderId is above threshold, no valid state reached")
+                return false
+            }
+        }
+        return true
+    }
 
     private fun Map<BrokerId, Double>.checkLatency(brokerId: BrokerId): Boolean {
         return this[brokerId] ?: error("There is no latency for broker $brokerId") < latencyThreshold
