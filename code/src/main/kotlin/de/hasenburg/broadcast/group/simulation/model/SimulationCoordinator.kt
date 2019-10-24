@@ -10,7 +10,7 @@ import kotlin.random.Random
 private val logger = LogManager.getLogger()
 
 suspend fun runSimulation(latencyThreshold: Double,
-                          brokerLocations: Map<BrokerId, Location> = generateRandomBrokerLocations(10)) =
+                          brokerLocations: Map<BrokerId, Location> = generateRandomBrokerLocations(10)): Int =
         coroutineScope {
             val brokerChannels = generateBrokerChannel(brokerLocations.keys)
             val brokerJobs = mutableListOf<Deferred<Broker>>()
@@ -74,10 +74,11 @@ suspend fun runSimulation(latencyThreshold: Double,
 
             } while (!brokers.validateCreatedBroadcastGroups(false))
 
-            logger.info("Stable state reached after $tick ticks.")
+            logger.info("Stable state reached after $tick ticks, there are ${brokers.numberOfLeaders()} leaders")
             check(brokers.size == brokers.numberOfMembers() + brokers.numberOfLeaders())
             check(brokers.validateCreatedBroadcastGroups())
             brokers.printBroadcastGroups()
+            brokers.numberOfLeaders()
         }
 
 private fun List<Broker>.printBroadcastGroups() {

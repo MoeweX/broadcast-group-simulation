@@ -15,9 +15,16 @@ private val logger = LogManager.getLogger()
 const val msPerKm = 0.1
 
 fun main(args: Array<String>) {
+
+    val brokerLocations = generateRandomBrokerLocations(1000)
+    val latencyThresholds = listOf(10.0, 20.0, 20.0, 50.0, 100.0)
+
     val runtime = measureTimeMillis {
+        logger.info("Simulation with ${brokerLocations.size} brokers.")
         runBlocking {
-            runSimulation(20.0, generateRandomBrokerLocations(1000))
+            latencyThresholds.forEach {
+                logger.info("Latency threshold = $it, number of leaders = ${runSimulation(it, brokerLocations)}")
+            }
         }
     }
     logger.info("Simulation took $runtime ms")
