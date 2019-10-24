@@ -11,8 +11,9 @@ import kotlin.random.Random
 private val logger = LogManager.getLogger()
 
 suspend fun runSimulation(latencyThreshold: Double,
-                          brokerLocations: Map<BrokerId, Location> = generateRandomBrokerLocations(10)): Int =
-        coroutineScope {
+                          brokerLocations: Map<BrokerId, Location> = generateRandomBrokerLocations(10),
+                          brokerLcms: Map<BrokerId, Int> = brokerLocations.generateRandomBrokerLcms(5))
+        : Int = coroutineScope {
             val brokerChannels = generateBrokerChannel(brokerLocations.keys)
             val brokerJobs = mutableListOf<Deferred<Broker>>()
             val brokerInitChannel = Channel<Int>(Channel.BUFFERED)
@@ -23,7 +24,7 @@ suspend fun runSimulation(latencyThreshold: Double,
             for ((brokerId, location) in brokerLocations) {
                 brokerJobs.add(async(Dispatchers.Default) {
                     val b = Broker(brokerId,
-                            Random.nextInt(1, 1000),
+                            brokerLcms[brokerId] ?: error("There is no lcm for broker $brokerId"),
                             location,
                             brokerChannels,
                             latencyThreshold,
@@ -147,6 +148,10 @@ fun generateRandomBrokerLocations(brokerNumber: Int): Map<BrokerId, Location> {
     }
 
     return tmpMap
+}
+
+fun Map<BrokerId, Location>.generateRandomBrokerLcms(upperBound: Int): Map<BrokerId, Int> {
+    return this.mapValues { Random.nextInt(0, upperBound) }
 }
 
 private fun generateBrokerChannel(brokerIds: Set<BrokerId>): Map<BrokerId, Channel<BrokerMessage>> {
