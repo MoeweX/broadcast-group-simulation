@@ -16,7 +16,7 @@ Calculated output:
 Run the main method in the Main.kt file to start the simulation with randomly generated input values.
 If you want to see more details of the simulation process, update the log level in the `log4j2.xml` file.
 
-To use pre-defined data as input, supply required information as program data arguments.
+To use pre-defined data as input, supply required information as program data arguments (TBD).
 
 ## Simulation process
 
@@ -37,4 +37,13 @@ The tasks are as follows; more information on individual tasks can be found by i
 
 The simulation process ends, once the following two conditions are true:
 - all members have a latency to their leader that is below the defined latency threshold
-- a leader has a latency to all other leaders that is above the defined latency threshold
+- all leaders have a latency to all other leaders that is above the defined latency threshold
+
+## The "data" package
+
+The data package contains code to create a pre-defined input data set based on [iplane](https://web.eecs.umich.edu/~harshavm/iplane/) measurements.
+To create an data set with default parameters, run the main methods of the included files in the following order:
+1. IPlaneLoader.kt
+2. TBD
+
+You may also customize data set generation by updating the **conf** objects in each file's main method.

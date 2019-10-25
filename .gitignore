@@ -27,7 +27,6 @@ comment.cut
 .idea/
 *.iml
 target/
-*.log
 out/
 
 # Data
