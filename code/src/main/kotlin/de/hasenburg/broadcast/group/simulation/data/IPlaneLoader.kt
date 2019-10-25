@@ -13,6 +13,12 @@ import kotlin.random.Random
 
 private val logger = LogManager.getLogger()
 
+/**
+ * Loads iPlane files from the defined urls and stores them in the given data dir.
+ * Only loads files not present in the dir, already.
+ *
+ * For more information on iPlane data, see https://web.eecs.umich.edu/~harshavm/iplane/
+ */
 fun main() {
     // configuration
     val conf = object {
@@ -37,6 +43,9 @@ fun main() {
     logger.info("All files have been downloaded")
 }
 
+/**
+ * Returns which .txt files are present at [localDataDir].
+ */
 private fun loadExistingLocalFileNames(localDataDir: String): List<String> {
     val file = File(localDataDir)
     check(file.exists() && file.isDirectory) { "${file.absolutePath} does not exist or is not a directory" }
@@ -48,6 +57,10 @@ private fun loadExistingLocalFileNames(localDataDir: String): List<String> {
     }.map { it.nameWithoutExtension }
 }
 
+/**
+ * Returns individual file urls for the given [targetUrl] (should target the data set's month website).
+ * Returns only urls to files that do not exist in [existingFiles], yet.
+ */
 private fun getRemoteFileUrls(targetUrl: String, existingFiles: List<String>): List<String> {
     val doc = Jsoup.connect(targetUrl).get()
     val dayUrls = getDayUrls(targetUrl, doc).map { "$it/pl_latencies.txt" }
@@ -59,9 +72,16 @@ private fun getRemoteFileUrls(targetUrl: String, existingFiles: List<String>): L
     }.also { logger.info("${it.size}/${dayUrls.size} files found at $targetUrl are not available locally, yet") }
 }
 
+/**
+ * Gets the date prefix for a given url, for example:
+ * https://web.eecs.umich.edu/~harshavm/iplane/iplane_logs/data/2016/08/01/pl_latencies.txt -> 20160801
+ */
 private fun getFilePrefix(url: String) = url.split("data/")[1]
     .replace("/", "").replace("pl_latencies.txt", "")
 
+/**
+ * Helper method for [getRemoteFileUrls] to identify which day urls exist for a given [monthBody].
+ */
 private fun getDayUrls(targetUrl: String, monthBody: Document): List<String> {
     val links = monthBody.select("a")
     return links.filter {
@@ -74,6 +94,9 @@ private fun getDayUrls(targetUrl: String, monthBody: Document): List<String> {
     }.map { "$targetUrl/${it.text()}" }
 }
 
+/**
+ * Downloads all files found at [remoteFileUrls] and stores them in [localDataDir].
+ */
 @Suppress("BlockingMethodInNonBlockingContext")
 fun downloadFiles(localDataDir: String, remoteFileUrls: List<String>) {
     runBlocking {
