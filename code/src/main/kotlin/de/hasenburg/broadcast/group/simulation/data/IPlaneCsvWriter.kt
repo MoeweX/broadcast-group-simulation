@@ -49,7 +49,7 @@ fun main(args: Array<String>) {
  * Fetches IP information of [ip] using [ipInfo] for lookup and creates a line for a csv file
  */
 private fun makeCsvLine(ip: String, ipInfo: IPInfo, delim: String = ","): String {
-    logger.info("Looking up info for IP address " + ip)
+    logger.debug("Looking up info for IP address " + ip)
     val resp = ipInfo.lookupIP(ip)
     return resp.ip + delim + resp.countryCode + delim + resp.latitude + delim + resp.longitude + "\n"
 }
