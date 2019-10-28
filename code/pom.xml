@@ -125,14 +125,9 @@
             <version>1.12.1</version>
         </dependency>
         <dependency>
-            <groupId>de.hasenburg</groupId>
-            <artifactId>GeoBroker-Commons</artifactId>
-            <version>1.2</version>
-        </dependency>
-        <dependency>
             <groupId>org.locationtech.spatial4j</groupId>
             <artifactId>spatial4j</artifactId>
-            <version>0.8-SNAPSHOT</version>
+            <version>0.7</version>
         </dependency>
         <dependency>
             <groupId>org.locationtech.jts</groupId>

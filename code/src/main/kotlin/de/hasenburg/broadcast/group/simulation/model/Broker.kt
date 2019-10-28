@@ -3,14 +3,13 @@ package de.hasenburg.broadcast.group.simulation.model
 import de.hasenburg.broadcast.group.simulation.msPerKm
 import kotlinx.coroutines.channels.Channel
 import kotlin.random.Random
-import de.hasenburg.geobroker.commons.model.spatial.Location
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 
 private val logger = LogManager.getLogger()
 
-class Broker(val brokerId: BrokerId, private val lcm: Int,
-             private val location: Location,
+class Broker(val brokerId: BrokerId, val lcm: Int,
+             val location: Location,
              private val brokerChannels: Map<BrokerId, Channel<BrokerMessage>>,
              private val latencyThreshold: Double,
              brokerLocations: Map<BrokerId, Location>) {
@@ -34,7 +33,9 @@ class Broker(val brokerId: BrokerId, private val lcm: Int,
         this.error("$b $msg")
     }
 
-    private var leaderId: BrokerId = brokerId // in the beginning I am in a broadcast group that just comprises myself
+    var leaderId: BrokerId = brokerId // in the beginning I am in a broadcast group that just comprises myself
+        private set
+
     private var newLeaderId: BrokerId =
             brokerId // if other than myLeaderId, broker is currently joining another one
     val isLeader: Boolean

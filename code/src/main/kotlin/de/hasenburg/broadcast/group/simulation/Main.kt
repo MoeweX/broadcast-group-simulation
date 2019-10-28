@@ -1,9 +1,6 @@
 package de.hasenburg.broadcast.group.simulation
 
-import de.hasenburg.broadcast.group.simulation.model.BrokerId
-import de.hasenburg.broadcast.group.simulation.model.generateRandomBrokerLcms
-import de.hasenburg.broadcast.group.simulation.model.generateRandomBrokerLocations
-import de.hasenburg.broadcast.group.simulation.model.runSimulation
+import de.hasenburg.broadcast.group.simulation.model.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -27,7 +24,7 @@ fun main(args: Array<String>) {
 }
 
 fun runRandomSimulation() {
-    val brokerLocations = generateRandomBrokerLocations(5000)
+    val brokerLocations = generateRandomBrokerLocations(1000)
     val brokerLcms: Map<BrokerId, Int> = brokerLocations.generateRandomBrokerLcms(1000)
     val latencyThresholds = listOf(10.0, 20.0, 50.0, 100.0)
 
@@ -35,9 +32,9 @@ fun runRandomSimulation() {
         logger.info("Simulation with ${brokerLocations.size} brokers.")
         runBlocking {
             latencyThresholds.forEach {
-                logger.info("Latency threshold = $it, number of leaders = ${runSimulation(it,
-                        brokerLocations,
-                        brokerLcms)}")
+                val simulationResult = runSimulation(it, brokerLocations, brokerLcms)
+                logger.info("Latency threshold = $it, number of leaders = ${simulationResult.numberOfLeaders()}")
+                simulationResult.saveToCSV("./simulation-result/randomSimulationResult-$it.csv")
                 repeat(3) { logger.info("") }
             }
         }
