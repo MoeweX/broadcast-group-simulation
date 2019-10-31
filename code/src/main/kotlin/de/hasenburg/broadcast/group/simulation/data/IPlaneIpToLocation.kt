@@ -8,6 +8,10 @@ import org.apache.logging.log4j.LogManager
 import java.io.File
 import io.ipinfo.api.IPInfo
 import okhttp3.OkHttpClient
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
+import me.tongfei.progressbar.ProgressBar
+import me.tongfei.progressbar.ProgressBarStyle
 
 private val logger = LogManager.getLogger()
 
@@ -35,30 +39,60 @@ fun main(args: Array<String>) {
 
     // read in all .txt files from inputDir and get their ip addresses
     val toProcess = loadInputFileNames(conf.inputDir)
-    val ipAddresses = toProcess.map { file -> getIpAddresses(file) }
-            .flatten()
-            .filter { s -> !alreadyProcessed.contains(s) } // filter out ips in csv
+    val updateIp = Channel<Int>()
+    val ipAddresses = runBlocking {
+        launch { makeProgressBar("Loading IP addresses", updateIp, toProcess.size.toLong()) } // create progress bar
+        toProcess.map { async { getIpAddresses(it)
+                .also { updateIp.send(1) } } // update progress bar
+        }.awaitAll() // parallel map, File to List<String>
+    }.flatten()
+            .filter { !alreadyProcessed.contains(it) } // filter out ips in csv
             .also { logger.info("Found ${it.size} new IP addresses") }
 
-    // fetch information from ipinfo.io and write to csv file (append if exists)
-    val client = OkHttpClient.Builder().build() // use own client to have control over closing connections
-    val ipInfo = IPInfo.builder().setToken(conf.secret).setClient(client).build()
-    if (!outFile.exists()) {
-        outFile.writeText("ip_address${conf.delim}country${conf.delim}latitude${conf.delim}longitude\n")
-    }
-    ipAddresses.forEach { s -> outFile.appendText(makeCsvLine(s, ipInfo, conf.delim)) }
+    if (ipAddresses.isNotEmpty()) {
+        // fetch information from ipinfo.io and write to csv file (append if exists)
+        val pbWrite = ProgressBar("Writing CSV file", ipAddresses.size.toLong(), ProgressBarStyle.ASCII)
+        val client = OkHttpClient.Builder().build() // use own client to gain control over closing connections
+        val ipInfo = IPInfo.builder().setToken(conf.secret).setClient(client).build() // connect with secret using client
+        if (!outFile.exists()) { // write header if the file doesn't exist
+            outFile.writeText("ip_address${conf.delim}country${conf.delim}latitude${conf.delim}longitude\n")
+        }
+        ipAddresses.forEach {
+            outFile.appendText(makeCsvLine(it, ipInfo, conf.delim))
+            pbWrite.step()
+        }
+        pbWrite.close()
 
-    logger.info("Finished processing IP addresses")
-    // close executor service and connection pool of client for faster shutdown
-    client.dispatcher().executorService().shutdown()
-    client.connectionPool().evictAll()
+        logger.info("Finished processing IP addresses")
+        // close executor service and connection pool of client for faster shutdown
+        client.dispatcher().executorService().shutdown()
+        client.connectionPool().evictAll()
+    } else {
+        logger.info("Skipping IP lookup")
+    }
+}
+
+/**
+ * Creates a new progress bar of name [name] with [amount] steps that can be advanced
+ * in parallel using [updateChannel]
+ */
+suspend fun makeProgressBar(name: String, updateChannel: Channel<Int>, amount: Long) {
+    val pb = ProgressBar(name, amount, ProgressBarStyle.ASCII)
+    for (i in updateChannel) {
+        pb.step()
+
+        if (pb.current == amount) {
+            updateChannel.close()
+        }
+    }
+    pb.close()
 }
 
 /**
  * Fetches IP information of [ip] using [ipInfo] for lookup and creates a line for a csv file
  */
 private fun makeCsvLine(ip: String, ipInfo: IPInfo, delim: String = ","): String {
-    logger.info("Looking up info for IP address $ip")
+    // logger.info("Looking up info for IP address $ip")
     val resp = ipInfo.lookupIP(ip)
     return resp.ip + delim + resp.countryCode + delim + resp.latitude + delim + resp.longitude + "\n"
 }
@@ -69,10 +103,11 @@ private fun makeCsvLine(ip: String, ipInfo: IPInfo, delim: String = ","): String
 private fun getIpAddresses(inputFile: File): List<String> {
     val ipRegex = """\d\d?\d?\.\d\d?\d?\.\d\d?\d?\.\d\d?\d?""".toRegex()
 
-    logger.info("Reading file ${inputFile.name}")
+    // logger.info("Reading file ${inputFile.name}")
     return inputFile.readLines() // get lines of input file
-            .map { line -> line.trim().split(" ") // somehow \\s wouldn't match...
-                    .filter { s -> ipRegex.matches(s) } // filter out non ip addresses
+            .map { line ->
+                line.trim().split(" ") // somehow \\s wouldn't match...
+                        .filter { s -> ipRegex.matches(s) } // filter out non ip addresses
             }.flatten() // flatten list to get a list of ip addresses
 }
 
