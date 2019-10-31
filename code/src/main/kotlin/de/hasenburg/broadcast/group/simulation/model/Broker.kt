@@ -51,7 +51,7 @@ class Broker(val brokerId: BrokerId, val lcm: Int,
     private val brokerLatenciesInMs =
             brokerLocations.mapValues { location.distanceKmTo(it.value) * msPerKm }
 
-    // as we loop over the channel, we
+    // as we loop over the channel, we have to buffer a message when we should not have received it yet
     private var messageBuffer: BrokerMessage? = null
     private var busyAsMerging: Boolean = false
 
