@@ -24,7 +24,7 @@ fun main(args: Array<String>) {
 }
 
 fun runRandomSimulation() {
-    val brokerLocations = generateRandomBrokerLocations(1000)
+    val brokerLocations = generateRandomBrokerLocations(2000)
     val brokerLcms: Map<BrokerId, Int> = brokerLocations.generateRandomBrokerLcms(1000)
     val latencyThresholds = listOf(10.0, 20.0, 50.0, 100.0)
 
@@ -33,13 +33,12 @@ fun runRandomSimulation() {
         runBlocking {
             latencyThresholds.forEach {
                 val simulationResult = runSimulation(it, brokerLocations, brokerLcms)
-                logger.info("Latency threshold = $it, number of leaders = ${simulationResult.numberOfLeaders()}")
-                simulationResult.saveToCSV("./simulation-result/randomSimulationResult-$it.csv")
-                repeat(3) { logger.info("") }
+                logger.info("Latency threshold = $it, number of leaders = ${simulationResult.brokers.numberOfLeaders()}")
+                simulationResult.saveExperimentData(filePrefix = "randomResult")
             }
         }
     }
-    logger.info("Simulation took $runtime ms")
+    logger.info("Running all simulations took $runtime ms")
 }
 
 fun runDefinedSimulation(args: List<String>) {

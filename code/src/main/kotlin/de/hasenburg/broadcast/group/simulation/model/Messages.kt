@@ -40,3 +40,13 @@ enum class MergeReplyCode {
     IJoin,
     BusyTryAgain
 }
+
+/**
+ * Return type of [Broker.doJoin] to indicate whether a joined occured, and whether the join is carried out by a
+ * member or a leader [Broker].
+ */
+enum class JoinType {
+    JoinLeader,
+    JoinMember,
+    NoJoin
+}

@@ -5,6 +5,7 @@ import kotlinx.coroutines.channels.Channel
 import me.tongfei.progressbar.ProgressBar
 import org.apache.logging.log4j.LogManager
 import java.io.File
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 
 private val logger = LogManager.getLogger()
@@ -12,7 +13,8 @@ private val logger = LogManager.getLogger()
 suspend fun runSimulation(latencyThreshold: Double,
                           brokerLocations: Map<BrokerId, Location> = generateRandomBrokerLocations(10),
                           brokerLcms: Map<BrokerId, Int> = brokerLocations.generateRandomBrokerLcms(5))
-        : List<Broker> = coroutineScope {
+        : SimulationResult = coroutineScope {
+
     val brokerChannels = generateBrokerChannel(brokerLocations.keys)
     val brokerJobs = mutableListOf<Deferred<Broker>>()
     val brokerInitChannel = Channel<Int>(Channel.BUFFERED)
@@ -33,16 +35,17 @@ suspend fun runSimulation(latencyThreshold: Double,
         })
     }
 
+    // result fields
     val brokers = brokerJobs.awaitAll()
-
-    var oldLeaders: Int
     var tick = 0
+    val nLeaderJoins: AtomicInteger = AtomicInteger(0)
+    val nMemberNotifications: AtomicInteger = AtomicInteger(0)
+    val nMemberJoins: AtomicInteger = AtomicInteger(0)
     logger.info("All brokers ready")
 
     do {
-        oldLeaders = brokers.numberOfLeaders()
         logger.debug("\n\n")
-        logger.info("Starting tick ${++tick}, currently there are $oldLeaders leader")
+        logger.info("Starting tick ${++tick}, currently there are ${brokers.numberOfLeaders()} leader")
         coroutineScope {
             brokers.forEach { launch(Dispatchers.Default) { it.startNewTick() } }
         }
@@ -65,12 +68,25 @@ suspend fun runSimulation(latencyThreshold: Double,
 
         logger.debug("Notifying members about merge")
         coroutineScope {
-            brokers.forEach { launch(Dispatchers.Default) { it.notifyMembersAboutMerge() } }
+            brokers.forEach {
+                launch(Dispatchers.Default) {
+                    nMemberNotifications.addAndGet(it.notifyMembersAboutMerge())
+                }
+            }
         }
 
         logger.debug("Leaders and Members are merging")
         coroutineScope {
-            brokers.forEach { launch(Dispatchers.Default) { it.doMerge() } }
+            brokers.forEach {
+                launch(Dispatchers.Default) {
+                    when (it.doJoin()) {
+                        JoinType.JoinLeader -> nLeaderJoins.incrementAndGet()
+                        JoinType.JoinMember -> nMemberJoins.incrementAndGet()
+                        JoinType.NoJoin -> {
+                        }
+                    }
+                }
+            }
         }
 
         logger.debug("Receiving JoinInfo")
@@ -83,7 +99,12 @@ suspend fun runSimulation(latencyThreshold: Double,
     logger.info("Stable state reached after $tick ticks, there are ${brokers.numberOfLeaders()} leaders")
     check(brokers.size == brokers.numberOfMembers() + brokers.numberOfLeaders())
     check(brokers.validateCreatedBroadcastGroups())
-    brokers
+    SimulationResult(brokers,
+            nLeaderJoins.get(),
+            nMemberJoins.get(),
+            nMemberNotifications.get(),
+            tick,
+            latencyThreshold)
 }
 
 suspend fun updateProgressBar(brokerInitChannel: Channel<Int>, amount: Long) {
@@ -100,33 +121,6 @@ suspend fun updateProgressBar(brokerInitChannel: Channel<Int>, amount: Long) {
     pb.close()
     println()
 
-}
-
-fun List<Broker>.printBroadcastGroups() {
-    for (broker in this) {
-        if (broker.isLeader) {
-            logger.info("${broker.brokerId} has these members: ${broker.membersInMyBroadcastGroup}")
-        }
-    }
-}
-
-fun List<Broker>.saveToCSV(filePath: String) {
-    val writer = File(filePath).also {
-        if (!it.exists()) {
-            it.parentFile.mkdirs()
-            it.createNewFile()
-        }
-        check(it.isFile) { "Cannot write results as ${it.absolutePath} is not a file." }
-        logger.info("Writing simulation result to file ${it.absolutePath}")
-    }.bufferedWriter()
-
-    // headline
-    writer.write("brokerId;latitude;longitude;lcm;leaderId\n")
-    for (b in this) {
-        writer.write("${b.brokerId.name};${b.location.lat};${b.location.lon};${b.lcm};${b.leaderId.name}\n")
-    }
-    writer.flush()
-    writer.close()
 }
 
 /**

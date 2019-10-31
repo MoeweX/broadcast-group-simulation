@@ -176,6 +176,7 @@ class Broker(val brokerId: BrokerId, val lcm: Int,
             return
         }
 
+        check(isLeader)
         check(message is BrokerMessage.MergeReply) { "$message is not a MergeReply" }
 
         when (message.mergeReplyCode) {
@@ -184,9 +185,7 @@ class Broker(val brokerId: BrokerId, val lcm: Int,
                 logger.d("I join ${message.sender}")
                 newLeaderId = message.sender
             }
-            MergeReplyCode.IJoin -> {
-                logger.d("${message.sender} joins me")
-            }
+            MergeReplyCode.IJoin -> logger.d("${message.sender} joins me")
             MergeReplyCode.BusyTryAgain -> logger.d("${message.sender} is busy")
         }
     }
@@ -194,24 +193,28 @@ class Broker(val brokerId: BrokerId, val lcm: Int,
     /**
      * When [newLeaderId] != [leaderId], a merge is happening that needs to be communicated to members by sending a
      * [BrokerMessage.MergeInfo].
+     *
+     * @return the number of members notified about merge
      */
-    suspend fun notifyMembersAboutMerge() {
+    suspend fun notifyMembersAboutMerge(): Int {
         if (newLeaderId != leaderId) {
             check(isLeader) { "$b Should have been a leader" }
             if (membersInMyBroadcastGroup.isEmpty()) {
                 logger.d("No members to notify about me joining $newLeaderId, broadcast group is empty.")
-                return
+                return 0
             }
             logger.d("Notifying members about me joining $newLeaderId")
             for (memberId in membersInMyBroadcastGroup) {
                 logger.d("Notifying $memberId about me joining $newLeaderId")
                 BrokerMessage.MergeInfo(newLeaderId, brokerId).send(memberId)
             }
+            return membersInMyBroadcastGroup.size
         }
+        return 0 // broker not joining another broker or there is no merge
     }
 
     /**
-     * Does the merge.
+     * Does the join.
      * As this method is also sending, it might store a message in the [messageBuffer].
      *
      * If we are a leader broker:
@@ -223,8 +226,12 @@ class Broker(val brokerId: BrokerId, val lcm: Int,
      * For both at the end (when join necessary):
      * - send [BrokerMessage.JoinInfo] to leader
      * - set [leaderId] to [newLeaderId]
+     *
+     * @return [JoinType] to indicate type of join
      */
-    suspend fun doMerge() {
+    suspend fun doJoin(): JoinType {
+        val leaderJoin = isLeader
+
         check(messageBuffer == null)
         if (newLeaderId != leaderId) {
             check(isLeader) { "$b New leader information should only be set on leaders, yet" }
@@ -235,7 +242,7 @@ class Broker(val brokerId: BrokerId, val lcm: Int,
                 if (it is BrokerMessage.JoinInfo) {
                     messageBuffer = it
                     logger.t("$b Found a JoinInfo in channel, preserving it for later.")
-                    return
+                    return JoinType.NoJoin
                 }
 
                 check(it is BrokerMessage.MergeInfo) { "$it is not a MergeInfo" }
@@ -248,11 +255,11 @@ class Broker(val brokerId: BrokerId, val lcm: Int,
                     logger.d("Latency to proposed leader would be above the threshold, starting own broadcast group")
                     newLeaderId = brokerId
                     leaderId = brokerId
-                    return
+                    return JoinType.NoJoin
                 }
             } ?: run {
-                logger.t("Did not receive a MergeInfo, so no merge needed")
-                return
+                logger.t("Did not receive a MergeInfo, so no join needed")
+                return JoinType.NoJoin
             }
 
         }
@@ -261,6 +268,12 @@ class Broker(val brokerId: BrokerId, val lcm: Int,
         check(newLeaderId != leaderId) // we only came here if we merge, all other cases return
         BrokerMessage.JoinInfo(brokerId).send(newLeaderId)
         leaderId = newLeaderId
+
+        return if (leaderJoin) {
+            JoinType.JoinLeader
+        } else {
+            JoinType.JoinMember
+        }
     }
 
     /**
