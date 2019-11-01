@@ -26,7 +26,7 @@ fun main(args: Array<String>) {
 fun runRandomSimulation() {
     val brokerLocations = generateRandomBrokerLocations(1000)
     val brokerLcms: Map<BrokerId, Int> = brokerLocations.generateRandomBrokerLcms(1000)
-    val latencyThresholds = listOf(10.0, 20.0, 50.0, 100.0)
+    val latencyThresholds = listOf(10.0, 50.0, 100.0, 150.0, 200.0)
 
     val runtime = measureTimeMillis {
         logger.info("Simulation with ${brokerLocations.size} brokers.")
@@ -34,7 +34,7 @@ fun runRandomSimulation() {
             latencyThresholds.forEach {
                 val simulationResult = runSimulation(it, brokerLocations, brokerLcms)
                 logger.info("Latency threshold = $it, number of leaders = ${simulationResult.brokers.numberOfLeaders()}")
-                simulationResult.saveExperimentData(filePrefix = "randomResult-$latencyThresholds-${brokerLocations.size}")
+                simulationResult.saveExperimentData(filePrefix = "randomResult-$it-${brokerLocations.size}")
             }
         }
     }
