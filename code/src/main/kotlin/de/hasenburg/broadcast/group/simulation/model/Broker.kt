@@ -53,7 +53,7 @@ class Broker(val brokerId: BrokerId, val lcm: Int,
 
     // as we loop over the channel, we have to buffer a message when we should not have received it yet
     private var messageBuffer: BrokerMessage? = null
-    private var busyAsMerging: Boolean = false
+    private var iStartedMerge: Boolean = false
 
     /**
      * The different phases in each tick might require state, the state is reset with this function.
@@ -62,12 +62,12 @@ class Broker(val brokerId: BrokerId, val lcm: Int,
     fun startNewTick() {
         check(brokerMessages.poll() == null)
         messageBuffer = null
-        busyAsMerging = false
+        iStartedMerge = false
     }
 
     suspend fun sendMergeRequest(currentLeaders: List<BrokerId>) {
-        // only leaders, and only 10% chance
-        if (!isLeader || Random.nextInt(0, 10) > 2) return
+        // only leaders, and only 50% chance
+        if (!isLeader || Random.nextInt(0, 10) > 5) return
 
         // find the leader with lowest latency
         val targetLeader = currentLeaders
@@ -83,7 +83,7 @@ class Broker(val brokerId: BrokerId, val lcm: Int,
         if (brokerLatenciesInMs.checkLatency(targetLeader.first)) {
             // send request
             logger.d("Sending MergeRequest to broker $targetLeader")
-            busyAsMerging = true
+            iStartedMerge = true
             BrokerMessage.MergeRequest(lcm, membersInMyBroadcastGroup.size, brokerId).send(targetLeader.first)
         } else {
             logger.d("Broker $targetLeader has the lowest other latency, but is above threshold so not merging")
@@ -97,26 +97,19 @@ class Broker(val brokerId: BrokerId, val lcm: Int,
      * Receives and processes all [BrokerMessage.MergeRequest] sent from other brokers. Replies with at least a
      * [BrokerMessage.MergeReply] that contains a [MergeReplyCode], but might also send additional messages.
      *
-     * If [busyAsMerging] == false; leader is determined by comparing [lcm] and size of [membersInMyBroadcastGroup]:
+     * Joins another broker, if the others lcm > our lcm, or other lcm == our lcm + other has more members
      *
-     * ... and if other is leader:
-     * - reply with [MergeReplyCode.IJoin]
-     *
-     * ... and if we are leader:
-     * - reply with [MergeReplyCode.JoinMe]
-     *
-     * If [busyAsMerging] == true -> replies with [MergeReplyCode.NoLeaderAnymore].
-     *
-     * TODO: if I did not start the merge and first reply is JoinMe -> all others that would result in JoinMe could be answered as well
      */
     suspend fun receiveAndProcessMergeRequests() {
         check(messageBuffer == null)
+        // receive all messages
+        val requests = mutableListOf<BrokerMessage.MergeRequest>()
         while (true) {
             val message = brokerMessages.poll()
 
             if (message == null) {
                 logger.t("Stopping to receive MergeRequests as channel is empty")
-                return
+                break
             }
 
             check(message is BrokerMessage.MergeReply || message is BrokerMessage.MergeRequest) { "$message is not a MergeReply or MergeRequest" }
@@ -124,40 +117,43 @@ class Broker(val brokerId: BrokerId, val lcm: Int,
             if (message !is BrokerMessage.MergeRequest) {
                 logger.t("Stopping to receive MergeRequests as channel now contains different messages")
                 messageBuffer = message
+                break
+            }
+
+            requests.add(message)
+        }
+
+        // if i started the merge, tell others that busy
+        if (iStartedMerge) {
+            for (request in requests) {
+                logger.d("Busy merging, so replying with ${MergeReplyCode.NoLeaderAnymore} to ${request.sender}")
+                BrokerMessage.MergeReply(MergeReplyCode.NoLeaderAnymore, brokerId).send(request.sender)
                 return
             }
-
-            // already merging
-            if (busyAsMerging) {
-                logger.d("Busy merging, so replying with ${MergeReplyCode.NoLeaderAnymore} to ${message.sender}")
-                BrokerMessage.MergeReply(MergeReplyCode.NoLeaderAnymore, brokerId).send(message.sender)
-                continue
-            }
-
-            // first message, so needs to be processed properly
-            busyAsMerging = true
-            when (message.lcm.compareTo(lcm)) {
-                -1 -> {
-                    logger.d("${message.sender} should join me")
-                    BrokerMessage.MergeReply(MergeReplyCode.JoinMe, brokerId).send(message.sender)
-                }
-                0 -> {
-                    if (message.groupSize < membersInMyBroadcastGroup.size) {
-                        logger.d("${message.sender} should join me")
-                        BrokerMessage.MergeReply(MergeReplyCode.JoinMe, brokerId).send(message.sender)
-                    } else {
-                        logger.d("I join ${message.sender}")
-                        newLeaderId = message.sender
-                        BrokerMessage.MergeReply(MergeReplyCode.IJoin, brokerId).send(message.sender)
-                    }
-                }
-                1 -> {
-                    logger.d("I join ${message.sender}")
-                    newLeaderId = message.sender
-                    BrokerMessage.MergeReply(MergeReplyCode.IJoin, brokerId).send(message.sender)
-                }
-            }
         }
+
+        // calculate highest lcm
+        val highestLcm = requests.maxBy { it.lcm } ?: return // did not receive a merge request
+
+        // check whether we join -> tell others NoLeaderAnymore
+        if ((highestLcm.lcm > lcm) || (highestLcm.lcm == lcm && highestLcm.groupSize > membersInMyBroadcastGroup.size)) {
+            logger.d("I join ${highestLcm.sender}")
+            newLeaderId = highestLcm.sender
+            BrokerMessage.MergeReply(MergeReplyCode.IJoin, brokerId).send(highestLcm.sender)
+
+            // notify others
+            for (request in requests.filter { it.sender != highestLcm.sender }) {
+                BrokerMessage.MergeReply(MergeReplyCode.NoLeaderAnymore, brokerId).send(request.sender)
+            }
+            return
+        }
+
+        // we do not join another one, so all others should join us
+        for (request in requests) {
+            logger.d("${request.sender} should join me")
+            BrokerMessage.MergeReply(MergeReplyCode.JoinMe, brokerId).send(request.sender)
+        }
+
     }
 
     /**
@@ -186,7 +182,8 @@ class Broker(val brokerId: BrokerId, val lcm: Int,
                 newLeaderId = message.sender
             }
             MergeReplyCode.IJoin -> logger.d("${message.sender} joins me")
-            MergeReplyCode.NoLeaderAnymore -> logger.d("${message.sender} is busy")
+            MergeReplyCode.NoLeaderAnymore -> logger.d("${message.sender} is no leader anymore")
+            MergeReplyCode.BusyTryAgain -> logger.d("${message.sender} is busy")
         }
     }
 
@@ -338,7 +335,7 @@ class Broker(val brokerId: BrokerId, val lcm: Int,
     override fun toString(): String {
         return "Broker(brokerId=$brokerId, lcm=$lcm, location=$location, latencyThreshold=$latencyThreshold, " +
                 "leaderId=$leaderId, newLeaderId=$newLeaderId, membersInMyBroadcastGroup=$membersInMyBroadcastGroup, " +
-                "brokerLatenciesInMs=$brokerLatenciesInMs, messageBuffer=$messageBuffer, iStartedMerge=$busyAsMerging)"
+                "brokerLatenciesInMs=$brokerLatenciesInMs, messageBuffer=$messageBuffer, iStartedMerge=$iStartedMerge)"
     }
 
 }

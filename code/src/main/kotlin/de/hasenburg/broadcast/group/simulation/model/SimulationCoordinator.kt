@@ -38,14 +38,14 @@ suspend fun runSimulation(latencyThreshold: Double,
     // result fields
     val brokers = brokerJobs.awaitAll()
     var tick = 0
-    val nLeaderJoins: AtomicInteger = AtomicInteger(0)
-    val nMemberNotifications: AtomicInteger = AtomicInteger(0)
-    val nMemberJoins: AtomicInteger = AtomicInteger(0)
+    val nLeaderJoins = AtomicInteger(0)
+    val nMemberNotifications = AtomicInteger(0)
+    val nMemberJoins = AtomicInteger(0)
     logger.info("All brokers ready")
 
     do {
         logger.debug("\n\n")
-        logger.info("Starting tick ${++tick}, currently there are ${brokers.numberOfLeaders()} leader")
+        logger.debug("Starting tick ${++tick}, currently there are ${brokers.numberOfLeaders()} leader")
         coroutineScope {
             brokers.forEach { launch(Dispatchers.Default) { it.startNewTick() } }
         }
