@@ -8,6 +8,7 @@ import com.xenomachina.argparser.default
 import com.xenomachina.argparser.mainBody
 import kotlinx.coroutines.*
 import org.apache.logging.log4j.LogManager
+import org.jsoup.HttpStatusException
 import java.io.File
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
@@ -94,13 +95,17 @@ private fun getDayUrls(targetUrl: String, monthBody: Document): List<String> {
 fun downloadFiles(localDataDir: File, remoteFileUrls: List<String>) {
     runBlocking {
         for (remoteFileUrl in remoteFileUrls) {
-            launch(Dispatchers.Default) {
+            launch(Dispatchers.IO) {
                 // download files concurrently
                 val fileName = "${getFilePrefix(remoteFileUrl)}-pl_latencies.txt"
-                val doc = Jsoup.connect(remoteFileUrl).get().body()
-                val content = doc.wholeText()
-                logger.info("Storing ${content.length} characters in $fileName")
-                File("${localDataDir.absolutePath}/$fileName").writeText(content)
+                try {
+                    val doc = Jsoup.connect(remoteFileUrl).get().body()
+                    val content = doc.wholeText()
+                    logger.info("Storing ${content.length} characters in $fileName")
+                    File("${localDataDir.absolutePath}/$fileName").writeText(content)
+                } catch (e: HttpStatusException) {
+                    logger.warn("Could not fetch $remoteFileUrl")
+                }
             }
             delay(Random.nextLong(0, 1)) // waiting is sometimes a good idea
         }
@@ -121,9 +126,9 @@ class Conf(parser: ArgParser) {
         }
 
     private val dataUrl = "https://web.eecs.umich.edu/~harshavm/iplane/iplane_logs/data"
-    private val year by parser
-        .storing("-y", "--year", help = "year the data was collected") { toInt() }
-        .default(2016)
+    private val years by parser
+        .storing("-y", "--years", help = "years the data was collected, e.g., 2014,2015,2016") { this.split(",").map { it.toInt() } }
+        .default(listOf(2016))
     private val months by parser
         .storing("-m", "--months", help = "months the data was collected, e.g., 1 or 1,2,3") {
             this.split(",").map { DecimalFormat("00").format(it.toInt()) }
@@ -136,5 +141,8 @@ class Conf(parser: ArgParser) {
             }
         }
 
-    val targetUrls = months.map { "$dataUrl/$year/$it" }
+    val targetUrls = years.map {
+        val year = it
+        months.map { "$dataUrl/$year/$it" }
+    }.flatten()
 }
