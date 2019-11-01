@@ -33,12 +33,12 @@ sealed class BrokerMessage {
  *
  * - [JoinMe]: the other leader [Broker] should join the [BroadcastGroup] of the sending leader [Broker]
  * - [IJoin]: the sending leader [Broker] will join the [BroadcastGroup] of the other leader [Broker]
- * - [BusyTryAgain]: the sending leader [Broker] is already negotiating a merge with another leader [Broker]
+ * - [NoLeaderAnymore]: the receiving leader [Broker] is already joining another broker [Broker], so it is no leader anymore
  */
 enum class MergeReplyCode {
     JoinMe,
     IJoin,
-    BusyTryAgain
+    NoLeaderAnymore
 }
 
 /**

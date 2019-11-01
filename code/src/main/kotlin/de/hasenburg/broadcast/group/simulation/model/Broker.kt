@@ -105,7 +105,7 @@ class Broker(val brokerId: BrokerId, val lcm: Int,
      * ... and if we are leader:
      * - reply with [MergeReplyCode.JoinMe]
      *
-     * If [busyAsMerging] == true -> replies with [MergeReplyCode.BusyTryAgain].
+     * If [busyAsMerging] == true -> replies with [MergeReplyCode.NoLeaderAnymore].
      *
      * TODO: if I did not start the merge and first reply is JoinMe -> all others that would result in JoinMe could be answered as well
      */
@@ -129,8 +129,8 @@ class Broker(val brokerId: BrokerId, val lcm: Int,
 
             // already merging
             if (busyAsMerging) {
-                logger.d("Busy merging, so replying with ${MergeReplyCode.BusyTryAgain} to ${message.sender}")
-                BrokerMessage.MergeReply(MergeReplyCode.BusyTryAgain, brokerId).send(message.sender)
+                logger.d("Busy merging, so replying with ${MergeReplyCode.NoLeaderAnymore} to ${message.sender}")
+                BrokerMessage.MergeReply(MergeReplyCode.NoLeaderAnymore, brokerId).send(message.sender)
                 continue
             }
 
@@ -186,7 +186,7 @@ class Broker(val brokerId: BrokerId, val lcm: Int,
                 newLeaderId = message.sender
             }
             MergeReplyCode.IJoin -> logger.d("${message.sender} joins me")
-            MergeReplyCode.BusyTryAgain -> logger.d("${message.sender} is busy")
+            MergeReplyCode.NoLeaderAnymore -> logger.d("${message.sender} is busy")
         }
     }
 

@@ -18,8 +18,8 @@ class SimulationResult(val brokers: List<Broker>, val nLeaderJoins: Int, val nMe
     }
 
     fun saveExperimentData(dirPath: String = "./simulation-result/", filePrefix: String = "result") {
-        val brokerCsvName = "$filePrefix-$latencyThreshold-brokers.csv"
-        val infoCsvName = "$filePrefix-$latencyThreshold-info.txt"
+        val brokerCsvName = "$filePrefix-brokers.csv"
+        val infoCsvName = "$filePrefix-info.txt"
 
         // broker data
         val brokerWriter = prepareWriter(dirPath, brokerCsvName)
