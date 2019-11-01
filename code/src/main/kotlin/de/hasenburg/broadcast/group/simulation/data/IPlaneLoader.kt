@@ -46,7 +46,6 @@ private fun loadExistingLocalFileNames(localDataDir: File): List<String> {
     val fileList = localDataDir.listFiles() ?: error("IO error while listing files in ${localDataDir.absolutePath}")
 
     return fileList.filter { it.extension == "txt" }.also {
-        check(it.isNotEmpty()) { "There are no files at ${localDataDir.absolutePath}" }
         logger.info("Found ${it.size} files in ${localDataDir.absolutePath}")
     }.map { it.nameWithoutExtension }
 }
@@ -103,7 +102,7 @@ fun downloadFiles(localDataDir: File, remoteFileUrls: List<String>) {
                 logger.info("Storing ${content.length} characters in $fileName")
                 File("${localDataDir.absolutePath}/$fileName").writeText(content)
             }
-            delay(Random.nextLong(500, 2000)) // waiting is sometimes a good idea
+            delay(Random.nextLong(0, 1)) // waiting is sometimes a good idea
         }
     } // this waits until all launched download coroutines are done
 }

@@ -19,7 +19,7 @@ private val logger = LogManager.getLogger()
  * Reads data loaded by IPlaneLoader.kt and uses ipinfo.io to generate a CSV file
  * with IP addresses and location info. An ipinfo.io secret is required to run.
  */
-fun main(args: Array<String>) {
+fun main(args: Array<String>) = runBlocking {
     // configuration
     val conf = mainBody { ArgParser(args).parseInto(::ConfIpToLocation) }
 
@@ -30,8 +30,8 @@ fun main(args: Array<String>) {
     } else {
         logger.info("Found existing ${outFile.name}, processing")
         outFile.readLines()
-                .map { s -> s.split(conf.delim)[0] } // get ip address as it is the first entry
-                .drop(1) // first line contains header
+            .map { s -> s.split(conf.delim)[0] } // get ip address as it is the first entry
+            .drop(1) // first line contains header
     }
     if (alreadyProcessed.isNotEmpty()) {
         logger.info("Found ${alreadyProcessed.size} IP addresses in ${outFile.name}")
@@ -40,27 +40,37 @@ fun main(args: Array<String>) {
     // read in all .txt files from inputDir and get their ip addresses
     val toProcess = loadInputFileNames(conf.inputDir)
     val updateIp = Channel<Int>()
-    val ipAddresses = runBlocking {
-        launch { makeProgressBar("Loading IP addresses", updateIp, toProcess.size.toLong()) } // create progress bar
-        toProcess.map { async { getIpAddresses(it)
-                .also { updateIp.send(1) } } // update progress bar
-        }.awaitAll() // parallel map, File to List<String>
-    }.flatten()
-            .filter { !alreadyProcessed.contains(it) } // filter out ips in csv
-            .also { logger.info("Found ${it.size} new IP addresses") }
+    launch { makeProgressBar("Parsing input files", updateIp, toProcess.size.toLong()) }
 
+    val addressesInFiles = toProcess.map {
+        async(Dispatchers.IO) { getIpAddresses(it).also { updateIp.send(1) } }
+    }.awaitAll().flatten().also { "Found ${it.size} addresses in given file(s)" }
+    updateIp.close()
+
+    // remove duplicates
+    val ipAddresses = addressesInFiles.toSet()
+        .also { logger.info("Only ${it.size} addresses are unique") }
+        .filter { !alreadyProcessed.contains(it) } // filter out ips in csv
+        .also { logger.info("${it.size} addresses are new") }
+
+    // load missing ips from ip info
     if (ipAddresses.isNotEmpty()) {
         // fetch information from ipinfo.io and write to csv file (append if exists)
-        val pbWrite = ProgressBar("Writing CSV file", ipAddresses.size.toLong(), ProgressBarStyle.ASCII)
+        val pbWrite = ProgressBar("Querying IPInfo", ipAddresses.size.toLong(), ProgressBarStyle.ASCII)
         val client = OkHttpClient.Builder().build() // use own client to gain control over closing connections
-        val ipInfo = IPInfo.builder().setToken(conf.secret).setClient(client).build() // connect with secret using client
+        val ipInfo =
+                IPInfo.builder().setToken(conf.secret).setClient(client).build() // connect with secret using client
         if (!outFile.exists()) { // write header if the file doesn't exist
             outFile.writeText("ip_address${conf.delim}country${conf.delim}latitude${conf.delim}longitude\n")
         }
-        ipAddresses.forEach {
-            outFile.appendText(makeCsvLine(it, ipInfo, conf.delim))
-            pbWrite.step()
-        }
+        withContext(Dispatchers.IO) {
+            ipAddresses.forEach {
+                launch {
+                    outFile.appendText(makeCsvLine(it, ipInfo, conf.delim))
+                    pbWrite.step()
+                }
+            }
+        } // waits for inner coroutines
         pbWrite.close()
 
         logger.info("Finished processing IP addresses")
@@ -105,10 +115,10 @@ private fun getIpAddresses(inputFile: File): List<String> {
 
     // logger.info("Reading file ${inputFile.name}")
     return inputFile.readLines() // get lines of input file
-            .map { line ->
-                line.trim().split(" ") // somehow \\s wouldn't match...
-                        .filter { s -> ipRegex.matches(s) } // filter out non ip addresses
-            }.flatten() // flatten list to get a list of ip addresses
+        .map { line ->
+            line.trim().split(" ") // somehow \\s wouldn't match...
+                .filter { s -> ipRegex.matches(s) } // filter out non ip addresses
+        }.flatten() // flatten list to get a list of ip addresses
 }
 
 /**
@@ -126,33 +136,33 @@ private fun loadInputFileNames(inputDir: File): List<File> {
 
 class ConfIpToLocation(parser: ArgParser) {
     val inputDir by parser
-            .storing("-i", "--input", help = "local directory containing the input files") { File(this) }
-            .default(File("data/iplane"))
-            .addValidator {
-                if (!value.exists()) {
-                    throw InvalidArgumentException("Directory $value does not exist")
-                }
-                if (!value.isDirectory) {
-                    throw InvalidArgumentException("$value is not a directory")
-                }
+        .storing("-i", "--input", help = "local directory containing the input files") { File(this) }
+        .default(File("data/iplane"))
+        .addValidator {
+            if (!value.exists()) {
+                throw InvalidArgumentException("Directory $value does not exist")
             }
+            if (!value.isDirectory) {
+                throw InvalidArgumentException("$value is not a directory")
+            }
+        }
 
     val outputDir by parser
-            .storing("-o", "--output", help = "local directory where the output is written") { File(this) }
-            .default(File("data/ip_locations"))
-            .addValidator {
-                if (!value.exists()) {
-                    throw InvalidArgumentException("Directory $value does not exist")
-                }
-                if (!value.isDirectory) {
-                    throw InvalidArgumentException("$value is not a directory")
-                }
+        .storing("-o", "--output", help = "local directory where the output is written") { File(this) }
+        .default(File("data/ip_locations"))
+        .addValidator {
+            if (!value.exists()) {
+                throw InvalidArgumentException("Directory $value does not exist")
             }
+            if (!value.isDirectory) {
+                throw InvalidArgumentException("$value is not a directory")
+            }
+        }
 
     val delim by parser
-            .storing("--delimiter", help = "delimiter to be used for csv file") { this }
-            .default(",")
+        .storing("--delimiter", help = "delimiter to be used for csv file") { this }
+        .default(",")
 
     val secret by parser
-            .storing("-s", "--secret", help = "secret for ipinfo.io") { this }
+        .storing("-s", "--secret", help = "secret for ipinfo.io") { this }
 }
