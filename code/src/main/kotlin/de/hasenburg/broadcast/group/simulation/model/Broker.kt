@@ -77,7 +77,7 @@ class Broker(val brokerId: BrokerId, val lcm: Int,
 
 
         check(targetLeader != null && targetLeader.second > 0.0) {
-            "TargetLeader is $targetLeader, this cannot be true; currentLeaders are $currentLeaders"
+            "$b TargetLeader is $targetLeader, this cannot be true; I am ${toString()}, currentLeaders are $currentLeaders"
         }
 
         if (brokerLatenciesInMs.checkLatency(targetLeader.first)) {
@@ -112,7 +112,7 @@ class Broker(val brokerId: BrokerId, val lcm: Int,
                 break
             }
 
-            check(message is BrokerMessage.MergeReply || message is BrokerMessage.MergeRequest) { "$message is not a MergeReply or MergeRequest" }
+            check(message is BrokerMessage.MergeReply || message is BrokerMessage.MergeRequest) { "$b $message is not a MergeReply or MergeRequest" }
 
             if (message !is BrokerMessage.MergeRequest) {
                 logger.t("Stopping to receive MergeRequests as channel now contains different messages")
@@ -173,7 +173,7 @@ class Broker(val brokerId: BrokerId, val lcm: Int,
         }
 
         check(isLeader)
-        check(message is BrokerMessage.MergeReply) { "$message is not a MergeReply" }
+        check(message is BrokerMessage.MergeReply) { "$b $message is not a MergeReply" }
 
         when (message.mergeReplyCode) {
             // these code are from the perspective of the sender
@@ -238,11 +238,11 @@ class Broker(val brokerId: BrokerId, val lcm: Int,
             brokerMessages.poll()?.also {
                 if (it is BrokerMessage.JoinInfo) {
                     messageBuffer = it
-                    logger.t("$b Found a JoinInfo in channel, preserving it for later.")
+                    logger.t("Found a JoinInfo in channel, preserving it for later.")
                     return JoinType.NoJoin
                 }
 
-                check(it is BrokerMessage.MergeInfo) { "$it is not a MergeInfo" }
+                check(it is BrokerMessage.MergeInfo) { "$b $it is not a MergeInfo" }
 
                 // check latency to see whether join is possible
                 if (brokerLatenciesInMs.checkLatency(it.newLeaderId)) {
@@ -335,7 +335,7 @@ class Broker(val brokerId: BrokerId, val lcm: Int,
     override fun toString(): String {
         return "Broker(brokerId=$brokerId, lcm=$lcm, location=$location, latencyThreshold=$latencyThreshold, " +
                 "leaderId=$leaderId, newLeaderId=$newLeaderId, membersInMyBroadcastGroup=$membersInMyBroadcastGroup, " +
-                "brokerLatenciesInMs=$brokerLatenciesInMs, messageBuffer=$messageBuffer, iStartedMerge=$iStartedMerge)"
+                "iStartedMerge=$iStartedMerge)"
     }
 
 }

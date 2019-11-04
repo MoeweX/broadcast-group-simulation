@@ -30,7 +30,9 @@ target/
 out/
 
 # Data
+sim.pem
 *pl_latencies.txt
 simulation-result/
 ip_locations.csv
 enriched.csv
+worldcities.csv

@@ -16,6 +16,8 @@ Calculated output:
 Run the main method in the Main.kt file to start the simulation with randomly generated input values.
 If you want to see more details of the simulation process, update the log level in the `log4j2.xml` file.
 
+If it stops during "Broker Initialization", give java more memory: `-Xmx32G`
+
 To use pre-defined data as input, supply required information as program data arguments (TBD).
 
 ## Simulation process
@@ -41,9 +43,28 @@ The simulation process ends, once the following two conditions are true:
 
 ## The "data" package
 
-The data package contains code to create a pre-defined input data set based on [iplane](https://web.eecs.umich.edu/~harshavm/iplane/) measurements.
-To create an data set with default parameters, run the main methods of the included files in the following order:
+The data package contains code to create a pre-defined input data set based on [iPlane](https://web.eecs.umich.edu/~harshavm/iplane/) measurements.
+
+To calculate a latency per km value based on the iPlane data, run the main methods of the included files in the
+ following order:
 1. IPlaneLoader.kt
-2. TBD
+2. IPlaneIpToLocation.kt (requires a secret from [ipinfo.io](https://ipinfo.io/))
+3. IPlaneLocationEnricher.kt
 
 You may also customize data set generation by updating the **conf** objects in each file's main method.
+
+## Run on AWS
+
+- Build Jar with `mvn package`
+- Copy to AWS
+```bash
+scp -i "sim.pem" out/BroadcastGroupSimulation.jar ec2-user@URL:/home/ec2-user/
+scp -i "sim.pem" data/simulation_input/worldcities.csv  ec2-user@URL:/home/ec2-user/
+```
+- Run and collect results
+```bash
+java -jar -Xmx16G BroadcastGroupSimulation.jar -i worldcities.csv -l 10,20,30,40,50,60,70,80,90,100,150,200,250,300,350,400,450,500 -p sim
+scp -i "sim.pem" -r ec2-user@URL:/home/ec2-user/simulation-result/ .
+scp -i "sim.pem" -r ec2-user@URL:/home/ec2-user/logfile.log/ sim-logfile.log
+
+```

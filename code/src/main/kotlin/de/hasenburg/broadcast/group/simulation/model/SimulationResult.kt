@@ -33,7 +33,7 @@ class SimulationResult(val brokers: List<Broker>, val nLeaderJoins: Int, val nMe
         // info data
         val infoWriter = prepareWriter(dirPath, infoCsvName)
         infoWriter.write("ticks: $ticks\n")
-        infoWriter.write("numberOfLeaders: ${brokers.numberOfLeaders()}")
+        infoWriter.write("numberOfLeaders: ${brokers.numberOfLeaders()}\n")
         infoWriter.write("nLeaderJoins: $nLeaderJoins\n")
         infoWriter.write("nMemberJoins: $nMemberJoins\n")
         infoWriter.write("nMemberNotifications: $nMemberNotifications\n")

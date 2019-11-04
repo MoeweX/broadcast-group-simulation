@@ -13,7 +13,7 @@
             <AppenderRef ref="Console"/>
             <AppenderRef ref="File"/>
         </Root>
-        <Logger name="de.hasenburg.broadcast.group.simulation.model.SimulationCoordinatorKt" level="info"
+        <Logger name="de.hasenburg.broadcast.group.simulation.model.SimulationCoordinatorKt" level="debug"
                 additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="File"/>

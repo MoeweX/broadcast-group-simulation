@@ -44,29 +44,29 @@ suspend fun runSimulation(latencyThreshold: Double,
     logger.info("All brokers ready")
 
     do {
-        logger.debug("\n\n")
+        logger.trace("\n\n")
         logger.debug("Starting tick ${++tick}, currently there are ${brokers.numberOfLeaders()} leader")
         coroutineScope {
             brokers.forEach { launch(Dispatchers.Default) { it.startNewTick() } }
         }
 
-        logger.debug("Sending MergeRequests")
+        logger.trace("Sending MergeRequests")
         val leaders = brokers.leaders()
         coroutineScope {
             brokers.forEach { launch(Dispatchers.Default) { it.sendMergeRequest(leaders) } }
         }
 
-        logger.debug("Receiving MergeRequests and Sending MergeReply")
+        logger.trace("Receiving MergeRequests and Sending MergeReply")
         coroutineScope {
             brokers.forEach { launch(Dispatchers.Default) { it.receiveAndProcessMergeRequests() } }
         }
 
-        logger.debug("Receiving MergeReply")
+        logger.trace("Receiving MergeReply")
         coroutineScope {
             brokers.forEach { launch(Dispatchers.Default) { it.receiveMergeReply() } }
         }
 
-        logger.debug("Notifying members about merge")
+        logger.trace("Notifying members about merge")
         coroutineScope {
             brokers.forEach {
                 launch(Dispatchers.Default) {
@@ -75,7 +75,7 @@ suspend fun runSimulation(latencyThreshold: Double,
             }
         }
 
-        logger.debug("Leaders and Members are merging")
+        logger.trace("Leaders and Members are merging")
         coroutineScope {
             brokers.forEach {
                 launch(Dispatchers.Default) {
@@ -89,7 +89,7 @@ suspend fun runSimulation(latencyThreshold: Double,
             }
         }
 
-        logger.debug("Receiving JoinInfo")
+        logger.trace("Receiving JoinInfo")
         coroutineScope {
             brokers.forEach { launch(Dispatchers.Default) { it.receiveJoinInfo() } }
         }
