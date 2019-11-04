@@ -161,6 +161,11 @@
             <artifactId>progressbar</artifactId>
             <version>0.7.4</version>
         </dependency>
+        <dependency>
+            <groupId>org.nield</groupId>
+            <artifactId>kotlin-statistics</artifactId>
+            <version>1.2.1</version>
+        </dependency>
         <!-- Kotlin -->
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
