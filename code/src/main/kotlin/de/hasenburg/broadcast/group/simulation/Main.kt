@@ -8,6 +8,7 @@ import de.hasenburg.broadcast.group.simulation.model.*
 import kotlinx.coroutines.runBlocking
 import org.apache.logging.log4j.LogManager
 import java.io.File
+import kotlin.random.Random
 import kotlin.system.measureTimeMillis
 
 private val logger = LogManager.getLogger()
@@ -49,17 +50,20 @@ fun runRandomSimulation() {
  */
 fun runWorldCitiesSimulation(args: Array<String>) {
     val conf = mainBody { ArgParser(args).parseInto(::Conf) }
-    val (brokerLocations, brokerLcms) = getLocationsAndLcms(conf.inputFile, conf.maxBrokers)
 
     val runtime = measureTimeMillis {
-        logger.info("Simulation with ${brokerLocations.size} brokers.")
-        runBlocking {
-            conf.latencyThresholds.forEach {
-                val simulationResult = runSimulation(it, brokerLocations, brokerLcms)
-                logger.info("Latency threshold = $it, number of leaders = ${simulationResult.brokers.numberOfLeaders()}")
-                simulationResult.saveExperimentData(filePrefix = "${conf.simulationPrefix}-$it-${brokerLocations.size}")
+        for (amount in conf.amounts) {
+            val (brokerLocations, brokerLcms) = getLocationsAndLcms(conf.inputFile, amount)
+            runBlocking {
+                conf.latencyThresholds.forEach {
+                    logger.info("Simulation with ${brokerLocations.size} brokers and a latency threshold of $it")
+                    val simulationResult = runSimulation(it, brokerLocations, brokerLcms)
+                    logger.info("Latency threshold = $it, number of leaders = ${simulationResult.brokers.numberOfLeaders()}")
+                    simulationResult.saveExperimentData(filePrefix = "${conf.simulationPrefix}-$it-${brokerLocations.size}")
+                }
             }
         }
+
     }
     logger.info("Running all simulations took $runtime ms")
 
@@ -69,21 +73,19 @@ fun runWorldCitiesSimulation(args: Array<String>) {
    ******* WorldCities ****************************
    ************************************************ */
 
-private fun getLocationsAndLcms(ipFile: File, maxBrokers: Int): Pair<Map<BrokerId, Location>, Map<BrokerId, Int>> {
-    var brokerData = ipFile.readLines().drop(1).map { it.getBrokerData() }
-
-    if (brokerData.size > maxBrokers) {
-        logger.info("Found ${brokerData.size} brokers in data set, but max broker is set to $maxBrokers, ignoring additionals")
-        brokerData = brokerData.subList(0, maxBrokers)
-    }
-
-    // preserve only unique unique locations
-    brokerData = brokerData.groupBy { Location(it.lat, it.lon) }.map {
-        if (it.value.size > 1) {
-            logger.warn("${it.value.size} brokers are at ${it.key}, picking ${it.value[0]}")
+/**
+ * [amount] - amount of brokers to use in %
+ */
+private fun getLocationsAndLcms(ipFile: File, amount: Int): Pair<Map<BrokerId, Location>, Map<BrokerId, Int>> {
+    val brokerData = ipFile.readLines().drop(1).map { it.getBrokerData() }
+        .shuffled().subList(0, amount) // randomly select the desired amount
+        .groupBy { Location(it.lat, it.lon) }
+        .map { // remove duplicates
+            if (it.value.size > 1) {
+                logger.warn("${it.value.size} brokers are at ${it.key}, picking ${it.value[0]}")
+            }
+            it.value[0]
         }
-        it.value[0]
-    }
 
     val brokerLocations = brokerData.map { BrokerId(it.name) to Location(it.lat, it.lon) }.toMap()
     val brokerLcms = brokerData.map { BrokerId(it.name) to it.lcm }.toMap()
@@ -99,7 +101,7 @@ private data class BrokerData(val name: String, val lat: Double, val lon: Double
 private fun String.getBrokerData(): BrokerData {
     val split = this.split("\",\"")
     check(split.size == 11) { "$this is not a valid world city row" }
-    val lcm = split[9].toIntOrNull() ?: 1
+    val lcm = split[9].replace(".0", "").toIntOrNull() ?: 1
     val id = split[10].replace("\"", "")
 
     return BrokerData("${split[1]}-$id", split[2].toDouble(), split[3].toDouble(), split[4], lcm)
@@ -123,16 +125,15 @@ class Conf(parser: ArgParser) {
 
     val latencyThresholds by parser
         .storing("-l", "--latencyTresholds", help = "latency thresholds, e.g., 10.0,20.0,30.0") {
-            this.split(",")
-                .map { it.toDouble() }
+            this.split(",").map { it.toDouble() }
         }
         .default(listOf(10.0, 20.0, 30.0))
 
-    val maxBrokers by parser
-        .storing("-m",
-                "--max",
-                help = "the maximum number of brokers that should be part of the simulation") { this.toInt() }
-        .default { Int.MAX_VALUE }
+    val amounts by parser
+        .storing("-a", "--amounts", help = "how many brokers to use for the simulation, e.g., 200,400,600") {
+            this.split(",").map { it.toInt() }
+        }
+        .default { listOf(1000) }
 
     init {
         logger.info("Configuration: inputFile = ${inputFile.absoluteFile}, simulationPrefix = $simulationPrefix, latencyThresholds = $latencyThresholds")

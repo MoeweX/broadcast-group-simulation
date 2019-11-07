@@ -56,15 +56,20 @@ You may also customize data set generation by updating the **conf** objects in e
 ## Run on AWS
 
 - Build Jar with `mvn package`
+- Set var with `set URL xxxxx`
 - Copy to AWS
 ```bash
-scp -i "sim.pem" out/BroadcastGroupSimulation.jar ec2-user@URL:/home/ec2-user/
-scp -i "sim.pem" data/simulation_input/worldcities.csv  ec2-user@URL:/home/ec2-user/
+scp -i "sim.pem" out/BroadcastGroupSimulation.jar ec2-user@$URL:/home/ec2-user/
+scp -i "sim.pem" data/simulation_input/worldcities.csv  ec2-user@$URL:/home/ec2-user/
 ```
-- Run and collect results
+- Run
 ```bash
-java -jar -Xmx16G BroadcastGroupSimulation.jar -i worldcities.csv -l 10,20,30,40,50,60,70,80,90,100,150,200,250,300,350,400,450,500 -p sim
-scp -i "sim.pem" -r ec2-user@URL:/home/ec2-user/simulation-result/ .
-scp -i "sim.pem" -r ec2-user@URL:/home/ec2-user/logfile.log/ sim-logfile.log
-
+sudo yum install java-11-amazon-corretto
+screen -S experiment
+java -jar -Xmx16G BroadcastGroupSimulation.jar -i worldcities.csv -l 10,20,30,40,50,60,70,80,90,100,150,200,250,300,350,400 -p sim -a 1200,2400,3600,4800,6000,7200,8400,9600,10800,12000
+```
+- Collect results
+```bash
+scp -i "sim.pem" -r ec2-user@$URL:/home/ec2-user/simulation-result/ .
+scp -i "sim.pem" -r ec2-user@$URL:/home/ec2-user/logfile.log/ simulation-result/sim-logfile.log
 ```
