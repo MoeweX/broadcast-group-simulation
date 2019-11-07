@@ -78,7 +78,6 @@ fun runWorldCitiesSimulation(args: Array<String>) {
  */
 private fun getLocationsAndLcms(ipFile: File, amount: Int): Pair<Map<BrokerId, Location>, Map<BrokerId, Int>> {
     val brokerData = ipFile.readLines().drop(1).map { it.getBrokerData() }
-        .shuffled().subList(0, amount) // randomly select the desired amount
         .groupBy { Location(it.lat, it.lon) }
         .map { // remove duplicates
             if (it.value.size > 1) {
@@ -86,6 +85,7 @@ private fun getLocationsAndLcms(ipFile: File, amount: Int): Pair<Map<BrokerId, L
             }
             it.value[0]
         }
+        .shuffled().subList(0, amount) // randomly select the desired amount
 
     val brokerLocations = brokerData.map { BrokerId(it.name) to Location(it.lat, it.lon) }.toMap()
     val brokerLcms = brokerData.map { BrokerId(it.name) to it.lcm }.toMap()
@@ -136,6 +136,6 @@ class Conf(parser: ArgParser) {
         .default { listOf(1000) }
 
     init {
-        logger.info("Configuration: inputFile = ${inputFile.absoluteFile}, simulationPrefix = $simulationPrefix, latencyThresholds = $latencyThresholds")
+        logger.info("Configuration: inputFile = ${inputFile.absoluteFile}, simulationPrefix = $simulationPrefix, latencyThresholds = $latencyThresholds, amounts = $amounts")
     }
 }

@@ -6,19 +6,25 @@ The goal of this simulation is to better understand how the latency threshold af
 Required input:
 - Broker names, locations, and lcms (leadership capability measures)
 - fixed, global latency threshold
-- an educated guess for latency per km
+- an educated guess for latency per km (see data package section below)
 
 Calculated output:
 - a valid set of broadcast groups
 
+The output is written to the simulation-result directory.
+The visualization directory contains various iPython notebooks that can be used to visualize the simulation results.
+
 ## Quickstart
 
-Run the main method in the Main.kt file to start the simulation with randomly generated input values.
+Run the main method in the Main.kt (code directory) file to start the simulation with randomly generated input values.
+As an alternative, you might also build a jar with `maven package` and run it without supplying any parameters (jar will be stored in the `out` directory).
 If you want to see more details of the simulation process, update the log level in the `log4j2.xml` file.
 
-If it stops during "Broker Initialization", give java more memory: `-Xmx32G`
+If the simulation stops during "Broker Initialization", give java more memory, e.g., with `-Xmx16G`.
 
-To use pre-defined data as input, supply required information as program data arguments (TBD).
+To use pre-defined data as input, supply required information as program data arguments, e.g.: `-p sim -i worldcities.csv -l 10,20 -a 1200,2400`.
+Input data is expected to be in the same format as the worldcities dataset of [simplemaps](https://simplemaps.com/data/world-cities).
+You may also start the jar with the -h option to learn more about available program arguments.
 
 ## Simulation process
 
@@ -27,8 +33,7 @@ During a "tick", every individual broker sequentially executes 7 tasks.
 Before the next task is started, every broker waits until all other brokers have finished the current task,
 and the next tick is only started when all brokers finished the tasks of the current tick.
 
-The tasks are as follows; more information on individual tasks can be found by inspecting the respective functions in
- BrokerKt:
+The tasks are as follows; more information on individual tasks can be found by inspecting the respective functions in BrokerKt:
 1. Prepare for next tick
 2. Broadcast group leaders send merge requests to other leaders
 3. Leaders process received merge requests and negotiate who becomes the leader of the new broadcast group
@@ -41,9 +46,9 @@ The simulation process ends, once the following two conditions are true:
 - all members have a latency to their leader that is below the defined latency threshold
 - all leaders have a latency to all other leaders that is above the defined latency threshold
 
-## The "data" package
+## The "data" package (code directory)
 
-The data package contains code to create a pre-defined input data set based on [iPlane](https://web.eecs.umich.edu/~harshavm/iplane/) measurements.
+The data package contains code to calculate an appropriate ms/km value for the simulation based on [iPlane](https://web.eecs.umich.edu/~harshavm/iplane/) measurements.
 
 To calculate a latency per km value based on the iPlane data, run the main methods of the included files in the
  following order:
@@ -51,10 +56,11 @@ To calculate a latency per km value based on the iPlane data, run the main metho
 2. IPlaneIpToLocation.kt (requires a secret from [ipinfo.io](https://ipinfo.io/))
 3. IPlaneLocationEnricher.kt
 
-You may also customize data set generation by updating the **conf** objects in each file's main method.
+You may also customize the calculation by updating the **conf** objects in each file's main method.
 
-## Run on AWS
+## Run Simulation on AWS
 
+Find below helpful commands to run the simulation on AWS (expects tu be executed in a fish shell).
 - Build Jar with `mvn package`
 - Set var with `set URL xxxxx`
 - Copy to AWS
