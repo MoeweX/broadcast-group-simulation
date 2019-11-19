@@ -1,7 +1,7 @@
 # Broadcast Group Simulation
 
 This repository contains code for the simulation of the broadcast group formation process.
-The goal of this simulation is to better understand how the latency threshold affects the number of broadcast groups.
+The goal of this simulation is to better understand how the latency threshold affects the number of broadcast groups, as well as involved overheads.
 
 Required input:
 - Broker names, locations, and lcms (leadership capability measures)
