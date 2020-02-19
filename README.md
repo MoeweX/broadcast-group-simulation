@@ -1,8 +1,8 @@
 # Broadcast Group Simulation
 
 This project is part of the Broadcast Group Project which includes the following subprojects:
-* [Broker Implementation](https://github.com/MoeweX/moquette) Extension of moquette that supports broadcast groups
-* [Broadcast Group Simulation](https://github.com/MoeweX/broadcast-group-simulation) A simulation of the broadcast group formation process
+* [Broker Implementation](https://github.com/MoeweX/moquette): Extension of moquette that supports broadcast groups
+* [Broadcast Group Simulation](https://github.com/MoeweX/broadcast-group-simulation): A simulation of the broadcast group formation process
 
 Today, communication between IoT devices heavily relies on fog-based publish/subscribe (pub/sub) systems. Communicating via the cloud, however, results in a latency that is too high for many IoT applications. This project is about a fog-based pub/sub system that integrates edge resources to improve communication latency between end devices in proximity. To this end, geo-distributed broker instances organize themselves in dynamically sized broadcast groups that are connected via a scale-able fog broker.
 
