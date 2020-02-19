@@ -1,5 +1,27 @@
 # Broadcast Group Simulation
 
+This project is part of the Broadcast Group Project which includes the following subprojects:
+* [Broker Implementation](https://github.com/MoeweX/moquette): Extension of moquette that supports broadcast groups
+* [Broadcast Group Simulation](https://github.com/MoeweX/broadcast-group-simulation): A simulation of the broadcast group formation process
+
+Today, communication between IoT devices heavily relies on fog-based publish/subscribe (pub/sub) systems. Communicating via the cloud, however, results in a latency that is too high for many IoT applications. This project is about a fog-based pub/sub system that integrates edge resources to improve communication latency between end devices in proximity. To this end, geo-distributed broker instances organize themselves in dynamically sized broadcast groups that are connected via a scale-able fog broker.
+
+If you use this software in a publication, please cite it as:
+
+### Text
+TODO
+
+### BibTeX
+```
+TODO
+```
+
+A full list of our [publications](https://www.mcc.tu-berlin.de/menue/forschung/publikationen/parameter/en/) and [prototypes](https://www.mcc.tu-berlin.de/menue/forschung/prototypes/parameter/en/) is available on our group website.
+
+Experiments related to the publication are based on [commit](https://github.com/MoeweX/broadcast-group-simulation/commit/80f7c30c745adc08e13665f6b1ee5f612cb2fa37). The jar was started with `java -jar -Xmx16G BroadcastGroupSimulation.jar -i worldcities.csv -l 10,20,30,40,50,60,70,80,90,100,150,200,250,300,350,400 -p sim -a 1200,2400,3600,4800,6000,7200,8400,9600,10800,12000`.
+
+## Instructions
+
 This repository contains code for the simulation of the broadcast group formation process.
 The goal of this simulation is to better understand how the latency threshold affects the number of broadcast groups, as well as involved overheads.
 
@@ -60,7 +82,7 @@ You may also customize the calculation by updating the **conf** objects in each 
 
 ## Run Simulation on AWS
 
-Find below helpful commands to run the simulation on AWS (expects tu be executed in a fish shell).
+Find below helpful commands to run the simulation on AWS (expects to be executed in a fish shell).
 - Build Jar with `mvn package`
 - Set var with `set URL xxxxx`
 - Copy to AWS
