@@ -74,7 +74,7 @@ fun runWorldCitiesSimulation(args: Array<String>) {
    ************************************************ */
 
 /**
- * [amount] - amount of brokers to use in %
+ * [amount] - number of brokers to use
  */
 private fun getLocationsAndLcms(ipFile: File, amount: Int): Pair<Map<BrokerId, Location>, Map<BrokerId, Int>> {
     val brokerData = ipFile.readLines().drop(1).map { it.getBrokerData() }
@@ -109,7 +109,7 @@ private fun String.getBrokerData(): BrokerData {
 
 class Conf(parser: ArgParser) {
     val inputFile by parser
-        .storing("-i", "--input", help = "local directory containing the input file") { File(this) }
+        .storing("-i", "--input", help = "local file containing the input") { File(this) }
         .default(File("data/simulation_input/worldcities.csv"))
         .addValidator {
             if (!value.exists()) {
