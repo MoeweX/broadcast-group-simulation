@@ -11,14 +11,14 @@ If you use this software in a publication, please cite it as:
 ### Text
 TODO
 
-Experiments related with this publication are based on [commit](https://github.com/MoeweX/broadcast-group-simulation/commit/80f7c30c745adc08e13665f6b1ee5f612cb2fa37). The jar was started with `java -jar -Xmx16G BroadcastGroupSimulation.jar -i worldcities.csv -l 10,20,30,40,50,60,70,80,90,100,150,200,250,300,350,400 -p sim -a 1200,2400,3600,4800,6000,7200,8400,9600,10800,12000`.
-
 ### BibTeX
 ```
 TODO
 ```
 
 A full list of our [publications](https://www.mcc.tu-berlin.de/menue/forschung/publikationen/parameter/en/) and [prototypes](https://www.mcc.tu-berlin.de/menue/forschung/prototypes/parameter/en/) is available on our group website.
+
+Experiments related to the publication are based on [commit](https://github.com/MoeweX/broadcast-group-simulation/commit/80f7c30c745adc08e13665f6b1ee5f612cb2fa37). The jar was started with `java -jar -Xmx16G BroadcastGroupSimulation.jar -i worldcities.csv -l 10,20,30,40,50,60,70,80,90,100,150,200,250,300,350,400 -p sim -a 1200,2400,3600,4800,6000,7200,8400,9600,10800,12000`.
 
 ## Instructions
 
