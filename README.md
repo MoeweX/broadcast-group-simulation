@@ -9,7 +9,7 @@ Today, communication between IoT devices heavily relies on fog-based publish/sub
 If you use this software in a publication, please cite it as:
 
 ### Text
-Jonathan Hasenburg, Florian Stanek, Florian Tschorsch, David Bermbach. Managing Latency and Excess Data Dissemination in Fog-Based Publish/Subscribe Systems. In: Proceedings of the Second IEEE International Conference on Fog Computing 2020 (ICFC 2020). IEEE 2020.
+Jonathan Hasenburg, Florian Stanek, Florian Tschorsch, David Bermbach. **Managing Latency and Excess Data Dissemination in Fog-Based Publish/Subscribe Systems**. In: Proceedings of the Second IEEE International Conference on Fog Computing 2020 (ICFC 2020). IEEE 2020.
 
 ### BibTeX
 ```
